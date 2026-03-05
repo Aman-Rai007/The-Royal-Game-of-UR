@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ur: Titanium 9.0 - Rai !nformatics</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Marcellus&display=swap');
+        
+        :root {
+            --gold: #ffcc33; --p1: #00d2ff; --p2: #bf00ff; --bg: #050508;
+            --tile: #221811; --border: #5c3a21; --accent: #ffcc33;
+        }
+
+        body.ancient { --bg: #0a0705; --tile: #2b1d14; --border: #8b5a2b; --accent: #ffcc33; }
+        body.cyber { --bg: #000510; --tile: #001530; --border: #00ffcc; --accent: #ff00ff; --p2: #ff00ff; }
+        body.pro { --bg: #111111; --tile: #2a2a2a; --border: #888888; --accent: #ffffff; }
+        body.galactic { --bg: #050011; --tile: #1a0033; --border: #9900ff; --accent: #00ffff; --p1: #00ffff; --p2: #ff0055; }
+
+        body {
+            background-color: var(--bg); color: #fff; font-family: 'Marcellus', sans-serif;
+            margin: 0; height: 100vh; width: 100vw; overflow: hidden; touch-action: none;
+            transition: background 0.8s ease; user-select: none; -webkit-user-select: none;
+        }
+
+        /* --- HUD --- */
+        #hud {
+            position: absolute; top: 0; left: 0; width: 100%; display: flex; flex-direction: column;
+            padding: 10px 15px; box-sizing: border-box; z-index: 100;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.95), transparent); pointer-events: none;
+        }
+        .hud-top { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; }
+        
+        .hud-btn {
+            background: rgba(255,255,255,0.05); border: 1px solid var(--gold); color: var(--gold);
+            padding: 8px 12px; border-radius: 5px; font-family: 'Cinzel Decorative', sans-serif;
+            cursor: pointer; font-size: 0.75rem; transition: 0.3s; pointer-events: auto;
+            backdrop-filter: blur(5px); box-shadow: 0 4px 10px rgba(0,0,0,0.5); text-transform: uppercase;
+        }
+        .hud-btn:hover { background: var(--gold); color: #000; transform: scale(0.95); }
+        .hud-btn.active { background: var(--p2); color: #fff; border-color: #fff; box-shadow: 0 0 15px var(--p2); }
+        
+        .coin-val { color: var(--gold); font-weight: bold; font-size: 1.2rem; text-shadow: 0 0 10px var(--gold); }
+        
+        .player-tag { display: flex; flex-direction: column; align-items: center; }
+        .p-name { font-family: 'Cinzel Decorative'; font-size: 0.9rem; font-weight: bold; }
+        .p1-name { color: var(--p1); text-shadow: 0 0 8px var(--p1); }
+        .p2-name { color: var(--p2); text-shadow: 0 0 8px var(--p2); }
+
+        #xp-container { width: 100%; height: 4px; background: rgba(255,255,255,0.1); margin-top: 10px; border-radius: 2px;}
+        #xp-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--p1), var(--gold)); transition: width 0.5s ease; box-shadow: 0 0 8px var(--p1);}
+
+        /* --- CANVAS --- */
+        #game-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; }
+        canvas { display: block; width: 100%; height: 100%; }
+
+        .ui-panel { 
+            position: absolute; bottom: 0; left: 0; width: 100%; display: flex; gap: 8px; padding: 15px; 
+            z-index: 100; background: linear-gradient(to top, rgba(0,0,0,0.95), transparent);
+            justify-content: center; flex-wrap: wrap; box-sizing: border-box; pointer-events: none;
+        }
+        .ui-panel button { pointer-events: auto; }
+
+        /* --- MODALS --- */
+        .modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 90%; max-width: 500px; background: rgba(10,10,10,0.98); border: 2px solid var(--gold);
+            padding: 25px; z-index: 1000; display: none; border-radius: 12px; text-align: center;
+            box-shadow: 0 0 50px rgba(0,0,0,1); max-height: 80vh; overflow-y: auto;
+        }
+        .modal h2 { color: var(--gold); font-family: 'Cinzel Decorative'; margin-top: 0; }
+
+        #premium-alert {
+            z-index: 2000; border-color: var(--p1); box-shadow: 0 0 40px rgba(0, 210, 255, 0.4);
+            background: linear-gradient(135deg, rgba(15,15,15,0.98), rgba(0,20,30,0.98));
+        }
+
+        input.text-input {
+            width: 90%; padding: 10px; margin: 10px 0; background: #111; color: #fff;
+            border: 1px solid var(--gold); border-radius: 5px; font-family: 'Marcellus'; text-align: center;
+        }
+
+        /* --- THE VAULT 2.0 CARDS --- */
+        .vault-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin: 20px 0; }
+        .vault-card {
+            background: #1a1a1a; border: 1px solid #444; border-radius: 8px; padding: 15px;
+            display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+            transition: 0.3s;
+        }
+        .vault-card:hover { border-color: var(--gold); box-shadow: 0 0 15px rgba(255,204,51,0.3); }
+        .vault-card.owned { border-color: #00d2ff; }
+        .vault-card.equipped { border-color: var(--gold); background: #2a2211; box-shadow: 0 0 15px var(--gold); }
+        .card-title { font-family: 'Cinzel Decorative'; font-size: 0.9rem; margin-bottom: 5px; color: #fff; }
+        .card-price { color: var(--gold); font-size: 0.8rem; margin-bottom: 10px; }
+
+        #splash {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000;
+            z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.8s ease; pointer-events: none;
+        }
+    </style>
+</head>
+<body class="ancient">
+
+    <div id="splash">
+        <h1 style="font-family:'Cinzel Decorative'; color:var(--gold); font-size:clamp(2rem, 6vw, 4rem); margin:0; text-shadow: 0 0 20px var(--gold); text-align: center;">RAI !NFORMATICS</h1>
+        <p style="letter-spacing:6px; color:#aaa; text-align: center;">TITANIUM 9.0 ENGINE</p>
+    </div>
+
+    <div id="hud">
+        <div class="hud-top">
+            <div class="player-tag">
+                <span class="p-name p1-name" id="hud-p1-name">PLAYER 1</span>
+                <span class="level-val">LVL <span id="level-disp">1</span></span>
+            </div>
+            <div style="text-align:center; flex:1;">
+                <div class="coin-val">🪙 <span id="coin-disp">0</span></div>
+                <div style="font-family:'Cinzel Decorative'; color:#888; font-size:0.6rem; letter-spacing:2px;">THE ROYAL GAME OF UR</div>
+            </div>
+            <div class="player-tag">
+                <span class="p-name p2-name" id="hud-p2-name">SHADOW BOSS</span>
+                <button class="hud-btn" style="padding: 4px 8px; font-size: 0.6rem; margin-top: 5px;" onclick="openProfile()">EDIT PROFILES</button>
+            </div>
+        </div>
+        <div id="xp-container"><div id="xp-bar"></div></div>
+    </div>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <div class="ui-panel">
+        <button class="hud-btn" onclick="openVault()">💎 THE VAULT</button>
+        <button class="hud-btn" onclick="openHelp()">📜 HELP</button>
+        <button class="hud-btn" id="mode-pvp" onclick="setMode('PvP')">👥 PVP</button>
+        <button class="hud-btn" id="mode-pve" onclick="setMode('PvE')">🌑 BOSS</button>
+        <button class="hud-btn" id="voice-btn" onclick="toggleVoice()">🎙️ VOICE: OFF</button>
+    </div>
+
+    <div id="help-modal" class="modal">
+        <h2>ANCIENT LAWS</h2>
+        <div style="text-align: left; font-size: 0.9rem; line-height: 1.6; color: #ccc; margin: 15px 0; max-height: 50vh; overflow-y: auto; padding-right: 10px;">
+            <p><b style="color:var(--gold)">1. THE OBJECTIVE:</b> Move all 7 of your pieces across the board's S-shaped path. The first to move all pieces perfectly off the board wins.</p>
+            <p><b style="color:var(--gold)">2. THE WARZONE:</b> The middle row of the board is shared by both players. If you land exactly on an opponent's piece in this zone, they are CAPTURED and sent back to the start!</p>
+            <p><b style="color:var(--gold)">3. ROSETTES (✦):</b> Landing on a star grants you an EXTRA TURN. The center star is also an uncapturable SAFE ZONE.</p>
+            <p><b style="color:var(--p1)">4. XP & VAULT:</b> Earn XP by moving and capturing. Level up to earn Rai Coins and unlock new themes in The Vault!</p>
+        </div>
+        <button class="hud-btn" style="width:100%; padding: 15px;" onclick="closeModal('help-modal')">I UNDERSTAND</button>
+    </div>
+
+    <div id="profile-modal" class="modal">
+        <h2>PLAYER IDENTITIES</h2>
+        <p style="color:#aaa; font-size:0.8rem;">Enter names for the arena.</p>
+        <input type="text" id="input-p1" class="text-input" placeholder="Player 1 Name" maxlength="12">
+        <input type="text" id="input-p2" class="text-input" placeholder="Player 2 (or Boss) Name" maxlength="12">
+        <button class="hud-btn" style="width:100%; padding: 12px; margin-top:10px;" onclick="saveProfiles()">SAVE IDENTITIES</button>
+    </div>
+
+    <div id="vault-modal" class="modal">
+        <h2>THE VAULT</h2>
+        <div class="vault-grid" id="vault-items-container"></div>
+        <button class="hud-btn" style="width:100%; padding: 15px;" onclick="closeModal('vault-modal')">EXIT VAULT</button>
+    </div>
+
+    <div id="premium-alert" class="modal">
+        <h2 id="alert-title" style="color: var(--p1);">NOTICE</h2>
+        <div id="alert-message" style="font-size: 1.2rem; color: #fff; margin: 20px 0; line-height: 1.5;"></div>
+        <button class="hud-btn" id="alert-btn" style="width:100%; padding: 15px;" onclick="closeAlert()">ACKNOWLEDGE</button>
+    </div>
+
+<script>
+const container = document.getElementById('game-container');
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// --- ENGINE STATE ---
+let TILE, OFF_X, OFF_Y, canvasW, canvasH;
+let diceZoneY = 0;
+
+const P1_PATH = [[0,3],[0,2],[0,1],[0,0],[1,0],[1,1],[1,2],[1,3],[1,4],[1,5],[1,6],[1,7],[0,7],[0,6]];
+const P2_PATH = [[2,3],[2,2],[2,1],[2,0],[1,0],[1,1],[1,2],[1,3],[1,4],[1,5],[1,6],[1,7],[2,7],[2,6]];
+const ROSETTES = ["0,0", "2,0", "1,3", "0,6", "2,6"];
+
+let state = {
+    p1Name: localStorage.getItem('rai_p1') || 'PLAYER 1',
+    p2Name: localStorage.getItem('rai_p2') || 'SHADOW BOSS',
+    coins: parseInt(localStorage.getItem('rai_coins')) || 500,
+    xp: parseInt(localStorage.getItem('rai_xp')) || 0,
+    level: parseInt(localStorage.getItem('rai_lvl')) || 1,
+    theme: localStorage.getItem('rai_theme') || 'ancient',
+    mode: localStorage.getItem('rai_mode') || 'PvE',
+    unlocked: JSON.parse(localStorage.getItem('rai_unlocked')) || ['ancient'],
+    turn: 1, roll: 0, hasRolled: false, isRolling: false,
+    p1_pos: Array(7).fill(-1), p2_pos: Array(7).fill(-1),
+    selectedIdx: -1, voiceEnabled: false, sysUnlocked: false
+};
+
+const storeItems = [
+    { id: 'ancient', name: 'Ancient Mahogany', price: 0 },
+    { id: 'cyber', name: 'Cyber Neon', price: 1000 },
+    { id: 'pro', name: 'Pro Metallic', price: 2000 },
+    { id: 'galactic', name: 'Galactic Quartz', price: 5000 } 
+];
+
+let visualPieces = {
+    p1: Array(7).fill(0).map(() => ({x: 0, y: 0, tx: 0, ty: 0})),
+    p2: Array(7).fill(0).map(() => ({x: 0, y: 0, tx: 0, ty: 0}))
+};
+
+// --- PREMIUM NOTIFICATION ENGINE ---
+let alertCallback = null;
+
+function showAlert(title, htmlMessage, callback = null, btnText = "ACKNOWLEDGE") {
+    document.getElementById('alert-title').innerText = title;
+    document.getElementById('alert-message').innerHTML = htmlMessage;
+    document.getElementById('alert-btn').innerText = btnText;
+    document.getElementById('premium-alert').style.display = 'block';
+    alertCallback = callback;
+    playSfx(400, 'square'); 
+}
+
+function closeAlert() {
+    document.getElementById('premium-alert').style.display = 'none';
+    playSfx(600, 'sine'); 
+    if (alertCallback) { alertCallback(); alertCallback = null; }
+}
+
+// --- HIGH-DPI SCALING ---
+function resizeEngine() {
+    canvasW = container.clientWidth;
+    canvasH = container.clientHeight;
+    const dpr = window.devicePixelRatio || 1;
+    
+    canvas.width = canvasW * dpr;
+    canvas.height = canvasH * dpr;
+    ctx.scale(dpr, dpr);
+    
+    TILE = Math.floor(Math.min(canvasW / 5.5, canvasH / 12));
+    OFF_X = (canvasW - (TILE * 3)) / 2;
+    OFF_Y = (canvasH - (TILE * 8)) / 2 - (TILE * 0.5);
+    diceZoneY = OFF_Y + (TILE * 8.5); 
+    
+    updateVisualTargets();
+    visualPieces.p1.forEach(p => { p.x = p.tx; p.y = p.ty; });
+    visualPieces.p2.forEach(p => { p.x = p.tx; p.y = p.ty; });
+}
+window.addEventListener('resize', resizeEngine);
+
+// --- ANTI-FREEZE VOICE AI ENGINE ---
+let audioCtx;
+window.activeSpeechQueue = []; 
+
+function unlockSystems() {
+    if(state.sysUnlocked) return;
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        if ('speechSynthesis' in window) {
+            let s = new SpeechSynthesisUtterance('');
+            s.volume = 0; window.speechSynthesis.speak(s);
+        }
+        state.sysUnlocked = true;
+    } catch(e) { console.error("Audio unlock fail", e); }
+}
+
+function playSfx(freq, type='sine') {
+    if(!audioCtx || audioCtx.state === 'suspended') return;
+    let osc = audioCtx.createOscillator();
+    let g = audioCtx.createGain();
+    osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.3);
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+}
+
+function speak(text) {
+    if(!state.voiceEnabled || !state.sysUnlocked) return;
+    
+    try {
+        if (window.speechSynthesis.speaking) window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.pitch = 0.9; msg.rate = 1.1; msg.volume = 1.0;
+        window.activeSpeechQueue.push(msg);
+        msg.onend = function() { window.activeSpeechQueue = window.activeSpeechQueue.filter(u => u !== msg); };
+        msg.onerror = function() { window.activeSpeechQueue = window.activeSpeechQueue.filter(u => u !== msg); };
+        setTimeout(() => { window.speechSynthesis.speak(msg); }, 20);
+    } catch (e) { console.warn("Speech API prevented:", e); }
+}
+
+function toggleVoice() {
+    unlockSystems();
+    state.voiceEnabled = !state.voiceEnabled;
+    document.getElementById('voice-btn').innerText = `🎙️ VOICE AI: ${state.voiceEnabled ? 'ON' : 'OFF'}`;
+    if(state.voiceEnabled) speak("Voice AI Online.");
+}
+
+// --- PROFILE, HELP, & VAULT SYSTEM ---
+function openHelp() { 
+    document.getElementById('help-modal').style.display='block'; 
+    playSfx(500, 'sine');
+}
+
+function updateUI() { 
+    document.getElementById('coin-disp').innerText = state.coins; 
+    document.getElementById('level-disp').innerText = state.level;
+    document.getElementById('xp-bar').style.width = `${Math.min((state.xp / (state.level * 500)) * 100, 100)}%`;
+    
+    document.getElementById('hud-p1-name').innerText = state.p1Name;
+    document.getElementById('hud-p2-name').innerText = state.mode === 'PvE' ? (state.p2Name === 'PLAYER 2' ? 'SHADOW BOSS' : state.p2Name) : state.p2Name;
+
+    document.getElementById('mode-pvp').className = state.mode === 'PvP' ? 'hud-btn active' : 'hud-btn';
+    document.getElementById('mode-pve').className = state.mode === 'PvE' ? 'hud-btn active' : 'hud-btn';
+}
+
+function openProfile() {
+    document.getElementById('input-p1').value = state.p1Name;
+    document.getElementById('input-p2').value = state.p2Name;
+    document.getElementById('profile-modal').style.display='block';
+}
+
+function saveProfiles() {
+    let n1 = document.getElementById('input-p1').value.trim().toUpperCase() || 'PLAYER 1';
+    let n2 = document.getElementById('input-p2').value.trim().toUpperCase() || 'PLAYER 2';
+    state.p1Name = n1; state.p2Name = n2;
+    localStorage.setItem('rai_p1', n1); localStorage.setItem('rai_p2', n2);
+    updateUI(); closeModal('profile-modal'); speak("Profiles updated.");
+}
+
+function openVault() { 
+    let html = "";
+    storeItems.forEach(item => {
+        let isOwned = state.unlocked.includes(item.id);
+        let isEquipped = state.theme === item.id;
+        
+        let cardClass = "vault-card";
+        if(isEquipped) cardClass += " equipped";
+        else if(isOwned) cardClass += " owned";
+
+        let btnText = isEquipped ? "EQUIPPED" : (isOwned ? "EQUIP" : `BUY 🪙 ${item.price}`);
+        let btnAction = `buyOrEquipTheme('${item.id}', ${item.price})`;
+
+        html += `
+            <div class="${cardClass}">
+                <div class="card-title">${item.name}</div>
+                ${!isOwned ? `<div class="card-price">Cost: ${item.price}</div>` : `<div class="card-price" style="color:#00d2ff">UNLOCKED</div>`}
+                <button class="hud-btn" onclick="${btnAction}">${btnText}</button>
+            </div>
+        `;
+    });
+    document.getElementById('vault-items-container').innerHTML = html;
+    document.getElementById('vault-modal').style.display='block'; 
+}
+
+function buyOrEquipTheme(id, price) {
+    if(state.unlocked.includes(id)) {
+        state.theme = id; document.body.className = id;
+        localStorage.setItem('rai_theme', id);
+        speak("Theme equipped"); openVault(); 
+    } else {
+        if(state.coins >= price) {
+            state.coins -= price; state.unlocked.push(id);
+            localStorage.setItem('rai_coins', state.coins); localStorage.setItem('rai_unlocked', JSON.stringify(state.unlocked));
+            updateUI(); openVault(); playSfx(1000, 'square'); speak("Purchase successful");
+        } else {
+            showAlert("TRANSACTION FAILED", `Insufficient Rai Coins for the <br><b style='color:var(--gold)'>${id.toUpperCase()}</b> theme.<br><span style='font-size:0.8rem; color:#888;'>Win matches to earn more coins!</span>`, null, "BACK TO VAULT");
+        }
+    }
+}
+
+function addXP(amount) {
+    state.xp += amount;
+    if(state.xp >= state.level * 500) {
+        state.xp = 0; state.level++; state.coins += 200;
+        playSfx(800, 'square'); speak("Level up achieved.");
+    }
+    localStorage.setItem('rai_xp', state.xp); 
+    localStorage.setItem('rai_lvl', state.level);
+    localStorage.setItem('rai_coins', state.coins);
+    updateUI();
+}
+
+function closeModal(id) { document.getElementById(id).style.display='none'; }
+function setMode(m) { localStorage.setItem('rai_mode', m); location.reload(); }
+
+// --- RENDERING ---
+function updateVisualTargets() {
+    if(!TILE) return; 
+    const getC = (p, pos, idx) => {
+        if(pos === -1) {
+            let sideX = p === 1 ? (OFF_X / 2.5) : canvasW - (OFF_X / 2.5);
+            let startY = OFF_Y + (TILE * 2);
+            return { x: sideX, y: startY + (idx * (TILE * 0.7)) };
+        }
+        if(pos >= 14) return {x: p===1 ? -TILE : canvasW + TILE, y: -100}; 
+        let path = p===1?P1_PATH:P2_PATH;
+        return {x: OFF_X + path[pos][0]*TILE + TILE/2, y: OFF_Y + path[pos][1]*TILE + TILE/2};
+    };
+    for(let i=0; i<7; i++) {
+        let t1 = getC(1, state.p1_pos[i], i); visualPieces.p1[i].tx = t1.x; visualPieces.p1[i].ty = t1.y;
+        let t2 = getC(2, state.p2_pos[i], i); visualPieces.p2[i].tx = t2.x; visualPieces.p2[i].ty = t2.y;
+    }
+}
+
+function drawBoard() {
+    const t = getComputedStyle(document.documentElement);
+    
+    if(state.selectedIdx !== -1 && state.hasRolled) {
+        ctx.beginPath(); ctx.setLineDash([10, 15]); ctx.lineDashOffset = -(performance.now() / 20);
+        ctx.strokeStyle = state.turn === 1 ? t.getPropertyValue('--p1') : t.getPropertyValue('--p2');
+        ctx.lineWidth = 4;
+        const path = state.turn === 1 ? P1_PATH : P2_PATH;
+        path.forEach((p, i) => {
+            const x = OFF_X + p[0]*TILE + TILE/2, y = OFF_Y + p[1]*TILE + TILE/2;
+            if(i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    for(let r=0; r<8; r++) {
+        for(let c=0; c<3; c++) {
+            if((c===0||c===2) && (r===4||r===5)) continue;
+            let tx = OFF_X + c*TILE, ty = OFF_Y + r*TILE;
+            
+            ctx.strokeStyle = t.getPropertyValue('--border'); ctx.lineWidth = 3;
+            if(state.theme === 'ancient') {
+                let grad = ctx.createLinearGradient(tx, ty, tx+TILE, ty+TILE);
+                grad.addColorStop(0, "#4a2e1b"); grad.addColorStop(1, "#26160c");
+                ctx.fillStyle = grad;
+            } else if(state.theme === 'galactic') {
+                let grad = ctx.createRadialGradient(tx+TILE/2, ty+TILE/2, 5, tx+TILE/2, ty+TILE/2, TILE);
+                grad.addColorStop(0, "#2a004d"); grad.addColorStop(1, "#0f001a");
+                ctx.fillStyle = grad;
+            } else {
+                ctx.fillStyle = t.getPropertyValue('--tile');
+            }
+            
+            let inset = TILE * 0.04;
+            ctx.fillRect(tx+inset, ty+inset, TILE-(inset*2), TILE-(inset*2));
+            ctx.strokeRect(tx+inset, ty+inset, TILE-(inset*2), TILE-(inset*2));
+            
+            if(ROSETTES.includes(`${c},${r}`)) {
+                ctx.fillStyle = "rgba(255,204,51,0.15)"; 
+                ctx.fillRect(tx+inset*2, ty+inset*2, TILE-(inset*4), TILE-(inset*4));
+                ctx.fillStyle = t.getPropertyValue('--gold'); 
+                ctx.font = `bold ${TILE*0.4}px Arial`;
+                ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                ctx.fillText("✦", tx+TILE/2, ty+TILE/2 + (TILE*0.05));
+            }
+        }
+    }
+}
+
+function drawPieces() {
+    const t = getComputedStyle(document.documentElement);
+    let radius = TILE * 0.38; 
+
+    const renderSet = (logicPosArr, visualArr, color, playerNum) => {
+        visualArr.forEach((vp, i) => {
+            if(logicPosArr[i] >= 14 && (vp.x < 0 || vp.x > canvasW)) return; 
+            vp.x += (vp.tx - vp.x) * 0.15; vp.y += (vp.ty - vp.y) * 0.15;
+            
+            ctx.shadowBlur = 15; ctx.shadowColor = color;
+            let grad = ctx.createRadialGradient(vp.x-(radius*0.3), vp.y-(radius*0.3), radius*0.1, vp.x, vp.y, radius);
+            grad.addColorStop(0, "#fff"); grad.addColorStop(0.3, color); grad.addColorStop(1, "#000");
+            ctx.fillStyle = grad;
+            ctx.beginPath(); ctx.arc(vp.x, vp.y, radius, 0, Math.PI*2); ctx.fill();
+            ctx.shadowBlur = 0; ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = 2; ctx.stroke();
+            
+            if(state.selectedIdx === i && state.turn === playerNum) {
+                ctx.strokeStyle = "#fff"; ctx.setLineDash([5, 5]);
+                ctx.beginPath(); ctx.arc(vp.x, vp.y, radius*1.3, 0, Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+            }
+        });
+    };
+    renderSet(state.p1_pos, visualPieces.p1, t.getPropertyValue('--p1'), 1);
+    renderSet(state.p2_pos, visualPieces.p2, t.getPropertyValue('--p2'), 2);
+}
+
+function drawSolidDice() {
+    const t = getComputedStyle(document.documentElement);
+    
+    if (!state.hasRolled && !state.isRolling && !(state.mode === 'PvE' && state.turn === 2)) {
+        ctx.fillStyle = t.getPropertyValue('--gold');
+        ctx.font = `bold ${TILE*0.25}px Cinzel Decorative`;
+        ctx.textAlign = "center";
+        ctx.globalAlpha = 0.5 + Math.sin(performance.now()/200)*0.5; 
+        ctx.fillText("TAP TO ROLL", canvasW/2, diceZoneY - TILE*0.5);
+        ctx.globalAlpha = 1.0;
+    }
+
+    const drawPyr = (x, y, active) => {
+        let size = TILE * 0.35; 
+        ctx.save(); ctx.translate(x, y);
+        if(state.isRolling) ctx.rotate((Math.random()-0.5)*0.5);
+        
+        ctx.beginPath(); ctx.moveTo(0, -size); ctx.lineTo(-size*0.8, size*0.7); ctx.lineTo(0, size*0.9); ctx.closePath();
+        ctx.fillStyle = active ? t.getPropertyValue('--gold') : "#8b5a2b"; 
+        if(!active && state.theme !== 'ancient') ctx.fillStyle = "#222";
+        ctx.fill(); ctx.strokeStyle = "#000"; ctx.lineWidth=1; ctx.stroke();
+        
+        ctx.beginPath(); ctx.moveTo(0, -size); ctx.lineTo(size*0.8, size*0.7); ctx.lineTo(0, size*0.9); ctx.closePath();
+        ctx.fillStyle = active ? "#ffe066" : "#cd853f"; 
+        if(!active && state.theme !== 'ancient') ctx.fillStyle = "#333";
+        ctx.fill(); ctx.stroke();
+        
+        ctx.restore();
+    };
+
+    let p1_xStart = canvasW/2 - (TILE*2.2);
+    let p2_xStart = canvasW/2 + (TILE*0.7);
+    
+    for(let i=0; i<4; i++) {
+        drawPyr(p1_xStart + i*(TILE*0.5), diceZoneY, (state.turn===1 && i < state.roll));
+        drawPyr(p2_xStart + i*(TILE*0.5), diceZoneY, (state.turn===2 && i < state.roll));
+    }
+}
+
+// --- GAME LOGIC ---
+function triggerRoll() {
+    if(state.hasRolled || state.isRolling) return;
+    state.isRolling = true; playSfx(300, 'square');
+    
+    let count = 0;
+    let anim = setInterval(() => {
+        state.roll = [0,1,1,2,2,2,3,3,4][Math.floor(Math.random()*9)];
+        count++;
+        if(count > 15) {
+            clearInterval(anim); 
+            state.isRolling = false; 
+            state.hasRolled = true;
+            speak(`Rolled ${state.roll}`);
+            
+            let hasMoves = false;
+            for(let i=0; i<7; i++) if(isValidMove(state.turn, i)) hasMoves = true;
+
+            if(state.roll === 0 || !hasMoves) {
+                if(!hasMoves && state.roll > 0) speak("Blocked.");
+                setTimeout(switchTurn, 1000); 
+            } else if(state.mode === 'PvE' && state.turn === 2) {
+                setTimeout(aiMove, 800);
+            }
+        }
+    }, 40);
+}
+
+function isValidMove(player, idx) {
+    let pieces = player === 1 ? state.p1_pos : state.p2_pos;
+    let other = player === 1 ? state.p2_pos : state.p1_pos;
+    let next = pieces[idx] + state.roll;
+
+    if(next > 14) return false; 
+    if(next < 14 && pieces.includes(next)) return false; 
+    if(next === 7 && other.includes(7)) return false; 
+    return true;
+}
+
+function attemptMove(p, i) {
+    if(!isValidMove(p, i)) return;
+
+    let pieces = p === 1 ? state.p1_pos : state.p2_pos;
+    let other = p === 1 ? state.p2_pos : state.p1_pos;
+    let next = pieces[i] + state.roll;
+
+    if(next >= 4 && next <= 11 && next !== 7) {
+        let t = other.indexOf(next);
+        if(t !== -1) { 
+            other[t] = -1; playSfx(150, 'sawtooth'); speak("Captured!"); 
+            if(p===1) addXP(50); else if(p===2 && state.mode==='PvP') addXP(50);
+        }
+    }
+
+    pieces[i] = next; state.selectedIdx = -1; playSfx(600); updateVisualTargets();
+    if(next < 14) addXP(10);
+    
+    if(pieces.filter(pos => pos >= 14).length === 7) {
+        let winnerName = p === 1 ? state.p1Name : (state.mode === 'PvE' ? state.p2Name : state.p2Name);
+        let titleColor = p === 1 ? "var(--p1)" : "var(--p2)";
+        
+        state.coins += 500; localStorage.setItem('rai_coins', state.coins);
+        speak(`${winnerName} is victorious!`); 
+        
+        showAlert(
+            "LEGENDARY VICTORY", 
+            `<span style="color:${titleColor}; font-size:1.8rem; font-weight:bold; font-family:'Cinzel Decorative';">${winnerName} WINS!</span><br><br>
+            <span style="color:var(--gold);">+500 RAI COINS ADDED TO VAULT</span>`,
+            () => location.reload(), 
+            "CONTINUE TO NEXT MATCH"
+        );
+        return;
+    }
+    
+    if([3, 7, 13].includes(next)) { 
+        state.hasRolled = false; speak("Extra turn"); 
+        if(state.mode === 'PvE' && state.turn === 2) setTimeout(triggerRoll, 1000);
+    } else {
+        setTimeout(switchTurn, 800); 
+    }
+}
+
+function switchTurn() {
+    state.turn = state.turn === 1 ? 2 : 1; 
+    state.hasRolled = false; state.selectedIdx = -1;
+    let turnName = state.turn === 1 ? state.p1Name : (state.mode === 'PvE' ? state.p2Name : state.p2Name);
+    speak(`${turnName}'s turn`);
+    
+    if(state.mode === 'PvE' && state.turn === 2) setTimeout(triggerRoll, 1000);
+}
+
+// 🧠 THE QUANTUM-BRAIN AI ENGINE (MAXIMUM STRENGTH)
+function aiMove() {
+    let moves = [];
+    for(let i=0; i<7; i++) if(isValidMove(2, i)) moves.push(i);
+    if(moves.length === 0) { setTimeout(switchTurn, 800); return; }
+
+    let bestMove = moves[0], bestScore = -9999;
+
+    moves.forEach(m => {
+        let currentPos = state.p2_pos[m];
+        let n = currentPos + state.roll;
+        let score = n * 5; // Base progress
+
+        if(n === 14) score += 10000; // Winning/scoring is absolute priority
+
+        // Capture Logic: Exponentially reward killing advanced human pieces
+        if(n >= 4 && n <= 11 && n !== 7 && state.p1_pos.includes(n)) {
+            score += 1500 + (n * 50); 
+        }
+
+        // Rosette Logic
+        if(n === 3 || n === 13) score += 600; 
+        if(n === 7) score += 2000; // CENTER ROSETTE IS KING (Safe + Extra Turn + Blocks Player)
+
+        // Penalty for LEAVING the center rosette if human pieces are threatening to take it
+        if (currentPos === 7) {
+            let humanThreatening = state.p1_pos.some(p1 => p1 >= 3 && p1 < 7);
+            if (humanThreatening) score -= 1500; // Stay and block!
+        }
+
+        // EVASION: Run away if currently in danger
+        if(currentPos >= 4 && currentPos <= 11 && currentPos !== 7) {
+            let wasInDanger = state.p1_pos.some(p1 => p1 >= 0 && currentPos > p1 && (currentPos - p1) <= 4);
+            if(wasInDanger) {
+                if (n > 11 || n === 7) score += 800; // Escaped to safety!
+                else score += 100; // Moved but still in combat zone
+            }
+        }
+
+        // VULNERABILITY AVOIDANCE: Don't step into obvious traps
+        if(n >= 4 && n <= 11 && n !== 7) {
+            state.p1_pos.forEach(p1 => {
+                if(p1 >= 0 && p1 < n) {
+                    let distance = n - p1;
+                    if(distance === 1) score -= 300; 
+                    if(distance === 2) score -= 500; // Highest probability to roll a 2 (37.5%)
+                    if(distance === 3) score -= 300; 
+                    if(distance === 4) score -= 150; 
+                }
+            });
+        }
+
+        if(currentPos === -1) score += 100; // Favor entering the board to maintain board presence
+
+        if(score > bestScore) { bestScore = score; bestMove = m; }
+    });
+
+    attemptMove(2, bestMove);
+}
+
+// --- INPUT CONTROL ---
+function handleInput(clientX, clientY) {
+    unlockSystems(); 
+
+    if(state.mode === 'PvE' && state.turn === 2) return; 
+
+    const rect = canvas.getBoundingClientRect();
+    const x = (clientX - rect.left) * (canvasW / rect.width);
+    const y = (clientY - rect.top) * (canvasH / rect.height);
+    
+    if(y > diceZoneY - TILE) {
+        triggerRoll();
+    } else if(state.hasRolled) {
+        let currentVisuals = state.turn === 1 ? visualPieces.p1 : visualPieces.p2;
+        for(let i=0; i<7; i++) {
+            let vp = currentVisuals[i]; 
+            if(Math.hypot(x-vp.x, y-vp.y) < TILE*0.5) { 
+                if(state.selectedIdx === i) attemptMove(state.turn, i);
+                else if(isValidMove(state.turn, i)) { state.selectedIdx = i; playSfx(400); }
+                else { playSfx(100, 'square'); speak("Invalid"); }
+                break; 
+            }
+        }
+    }
+}
+
+canvas.addEventListener('mousedown', e => handleInput(e.clientX, e.clientY));
+canvas.addEventListener('touchstart', e => { e.preventDefault(); handleInput(e.touches[0].clientX, e.touches[0].clientY); }, {passive: false});
+
+function loop() {
+    ctx.clearRect(0,0,canvasW,canvasH);
+    drawBoard(); drawPieces(); drawSolidDice();
+    requestAnimationFrame(loop);
+}
+
+window.onload = () => {
+    document.body.className = state.theme;
+    updateUI(); resizeEngine(); 
+    setTimeout(() => { document.getElementById('splash').style.opacity = '0'; setTimeout(()=>document.getElementById('splash').style.display='none', 800); }, 1000);
+    loop(); 
+};
+</script>
+</body>
+</html>
