@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ur: Titanium 8.0 - Rai !nformatics</title>
+    <title>Ur: Titanium 9.0 - Rai !nformatics</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Marcellus&display=swap');
         
@@ -103,7 +103,7 @@
 
     <div id="splash">
         <h1 style="font-family:'Cinzel Decorative'; color:var(--gold); font-size:clamp(2rem, 6vw, 4rem); margin:0; text-shadow: 0 0 20px var(--gold); text-align: center;">RAI !NFORMATICS</h1>
-        <p style="letter-spacing:6px; color:#aaa; text-align: center;">TITANIUM 8.0</p>
+        <p style="letter-spacing:6px; color:#aaa; text-align: center;">TITANIUM 9.0 ENGINE</p>
     </div>
 
     <div id="hud">
@@ -130,9 +130,21 @@
 
     <div class="ui-panel">
         <button class="hud-btn" onclick="openVault()">💎 THE VAULT</button>
+        <button class="hud-btn" onclick="openHelp()">📜 HELP</button>
         <button class="hud-btn" id="mode-pvp" onclick="setMode('PvP')">👥 PVP</button>
         <button class="hud-btn" id="mode-pve" onclick="setMode('PvE')">🌑 BOSS</button>
         <button class="hud-btn" id="voice-btn" onclick="toggleVoice()">🎙️ VOICE: OFF</button>
+    </div>
+
+    <div id="help-modal" class="modal">
+        <h2>ANCIENT LAWS</h2>
+        <div style="text-align: left; font-size: 0.9rem; line-height: 1.6; color: #ccc; margin: 15px 0; max-height: 50vh; overflow-y: auto; padding-right: 10px;">
+            <p><b style="color:var(--gold)">1. THE OBJECTIVE:</b> Move all 7 of your pieces across the board's S-shaped path. The first to move all pieces perfectly off the board wins.</p>
+            <p><b style="color:var(--gold)">2. THE WARZONE:</b> The middle row of the board is shared by both players. If you land exactly on an opponent's piece in this zone, they are CAPTURED and sent back to the start!</p>
+            <p><b style="color:var(--gold)">3. ROSETTES (✦):</b> Landing on a star grants you an EXTRA TURN. The center star is also an uncapturable SAFE ZONE.</p>
+            <p><b style="color:var(--p1)">4. XP & VAULT:</b> Earn XP by moving and capturing. Level up to earn Rai Coins and unlock new themes in The Vault!</p>
+        </div>
+        <button class="hud-btn" style="width:100%; padding: 15px;" onclick="closeModal('help-modal')">I UNDERSTAND</button>
     </div>
 
     <div id="profile-modal" class="modal">
@@ -283,7 +295,12 @@ function toggleVoice() {
     if(state.voiceEnabled) speak("Voice AI Online.");
 }
 
-// --- PROFILE & VAULT SYSTEM ---
+// --- PROFILE, HELP, & VAULT SYSTEM ---
+function openHelp() { 
+    document.getElementById('help-modal').style.display='block'; 
+    playSfx(500, 'sine');
+}
+
 function updateUI() { 
     document.getElementById('coin-disp').innerText = state.coins; 
     document.getElementById('level-disp').innerText = state.level;
@@ -499,7 +516,7 @@ function drawSolidDice() {
     }
 }
 
-// --- GOD-BRAIN AI & GAME LOGIC ---
+// --- GAME LOGIC ---
 function triggerRoll() {
     if(state.hasRolled || state.isRolling) return;
     state.isRolling = true; playSfx(300, 'square');
@@ -590,7 +607,7 @@ function switchTurn() {
     if(state.mode === 'PvE' && state.turn === 2) setTimeout(triggerRoll, 1000);
 }
 
-// 🧠 THE GOD-BRAIN HEURISTIC ENGINE
+// 🧠 THE QUANTUM-BRAIN AI ENGINE (MAXIMUM STRENGTH)
 function aiMove() {
     let moves = [];
     for(let i=0; i<7; i++) if(isValidMove(2, i)) moves.push(i);
@@ -603,19 +620,28 @@ function aiMove() {
         let n = currentPos + state.roll;
         let score = n * 5; // Base progress
 
-        if(n === 14) score += 5000; // Winning is top priority
+        if(n === 14) score += 10000; // Winning/scoring is absolute priority
 
+        // Capture Logic: Exponentially reward killing advanced human pieces
         if(n >= 4 && n <= 11 && n !== 7 && state.p1_pos.includes(n)) {
-            score += 800 + (n * 30); // Prioritize capturing pieces closer to Human's exit
+            score += 1500 + (n * 50); 
         }
 
-        if(n === 3 || n === 7 || n === 13) score += 600; // Rosette priority
+        // Rosette Logic
+        if(n === 3 || n === 13) score += 600; 
+        if(n === 7) score += 2000; // CENTER ROSETTE IS KING (Safe + Extra Turn + Blocks Player)
+
+        // Penalty for LEAVING the center rosette if human pieces are threatening to take it
+        if (currentPos === 7) {
+            let humanThreatening = state.p1_pos.some(p1 => p1 >= 3 && p1 < 7);
+            if (humanThreatening) score -= 1500; // Stay and block!
+        }
 
         // EVASION: Run away if currently in danger
         if(currentPos >= 4 && currentPos <= 11 && currentPos !== 7) {
             let wasInDanger = state.p1_pos.some(p1 => p1 >= 0 && currentPos > p1 && (currentPos - p1) <= 4);
             if(wasInDanger) {
-                if (n > 11 || n === 7) score += 400; // Escaped!
+                if (n > 11 || n === 7) score += 800; // Escaped to safety!
                 else score += 100; // Moved but still in combat zone
             }
         }
@@ -625,15 +651,15 @@ function aiMove() {
             state.p1_pos.forEach(p1 => {
                 if(p1 >= 0 && p1 < n) {
                     let distance = n - p1;
-                    if(distance === 1) score -= 250; 
-                    if(distance === 2) score -= 350; // Highest probability to roll a 2 (37.5%)
-                    if(distance === 3) score -= 250; 
-                    if(distance === 4) score -= 100; 
+                    if(distance === 1) score -= 300; 
+                    if(distance === 2) score -= 500; // Highest probability to roll a 2 (37.5%)
+                    if(distance === 3) score -= 300; 
+                    if(distance === 4) score -= 150; 
                 }
             });
         }
 
-        if(currentPos === -1) score += 50; // Enter the board
+        if(currentPos === -1) score += 100; // Favor entering the board to maintain board presence
 
         if(score > bestScore) { bestScore = score; bestMove = m; }
     });
