@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ur: Titanium 9.0 - Rai !nformatics</title>
+    <title>Ur: Titanium 10.0 - Rai !nformatics</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Marcellus&display=swap');
         
@@ -103,7 +103,7 @@
 
     <div id="splash">
         <h1 style="font-family:'Cinzel Decorative'; color:var(--gold); font-size:clamp(2rem, 6vw, 4rem); margin:0; text-shadow: 0 0 20px var(--gold); text-align: center;">RAI !NFORMATICS</h1>
-        <p style="letter-spacing:6px; color:#aaa; text-align: center;">TITANIUM 9.0 ENGINE</p>
+        <p style="letter-spacing:6px; color:#aaa; text-align: center;">TITANIUM 10.0 OMEGA</p>
     </div>
 
     <div id="hud">
@@ -191,7 +191,8 @@ let state = {
     unlocked: JSON.parse(localStorage.getItem('rai_unlocked')) || ['ancient'],
     turn: 1, roll: 0, hasRolled: false, isRolling: false,
     p1_pos: Array(7).fill(-1), p2_pos: Array(7).fill(-1),
-    selectedIdx: -1, voiceEnabled: false, sysUnlocked: false
+    selectedIdx: -1, voiceEnabled: false, sysUnlocked: false,
+    isVictory: false, victoryPlayer: 0 
 };
 
 const storeItems = [
@@ -205,6 +206,43 @@ let visualPieces = {
     p1: Array(7).fill(0).map(() => ({x: 0, y: 0, tx: 0, ty: 0})),
     p2: Array(7).fill(0).map(() => ({x: 0, y: 0, tx: 0, ty: 0}))
 };
+
+// --- SPARKING & PARTICLE ENGINE ---
+let particles = [];
+
+function spawnSparks(x, y, color, count, isHeavy = false) {
+    for(let i=0; i<count; i++) {
+        particles.push({
+            x: x, y: y,
+            vx: (Math.random() - 0.5) * (isHeavy ? 25 : 15),
+            vy: (Math.random() - 0.5) * (isHeavy ? 25 : 15),
+            life: 1.0,
+            decay: Math.random() * 0.03 + 0.015,
+            color: color,
+            size: Math.random() * 5 + 2
+        });
+    }
+}
+
+function drawParticles() {
+    for(let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.vx; p.y += p.vy;
+        p.vy += 0.2; 
+        p.life -= p.decay;
+        
+        if(p.life <= 0) {
+            particles.splice(i, 1);
+        } else {
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+            ctx.fill();
+        }
+    }
+    ctx.globalAlpha = 1.0;
+}
 
 // --- PREMIUM NOTIFICATION ENGINE ---
 let alertCallback = null;
@@ -518,7 +556,7 @@ function drawSolidDice() {
 
 // --- GAME LOGIC ---
 function triggerRoll() {
-    if(state.hasRolled || state.isRolling) return;
+    if(state.hasRolled || state.isRolling || state.isVictory) return;
     state.isRolling = true; playSfx(300, 'square');
     
     let count = 0;
@@ -565,7 +603,11 @@ function attemptMove(p, i) {
     if(next >= 4 && next <= 11 && next !== 7) {
         let t = other.indexOf(next);
         if(t !== -1) { 
-            other[t] = -1; playSfx(150, 'sawtooth'); speak("Captured!"); 
+            let capturedVP = (p === 1) ? visualPieces.p2[t] : visualPieces.p1[t];
+            let sparkColor = getComputedStyle(document.documentElement).getPropertyValue(p === 1 ? '--p1' : '--p2');
+            spawnSparks(capturedVP.x, capturedVP.y, sparkColor, 60, true);
+
+            other[t] = -1; playSfx(150, 'sawtooth'); speak("Target Destroyed!"); 
             if(p===1) addXP(50); else if(p===2 && state.mode==='PvP') addXP(50);
         }
     }
@@ -574,6 +616,9 @@ function attemptMove(p, i) {
     if(next < 14) addXP(10);
     
     if(pieces.filter(pos => pos >= 14).length === 7) {
+        state.isVictory = true;
+        state.victoryPlayer = p;
+        
         let winnerName = p === 1 ? state.p1Name : (state.mode === 'PvE' ? state.p2Name : state.p2Name);
         let titleColor = p === 1 ? "var(--p1)" : "var(--p2)";
         
@@ -607,61 +652,92 @@ function switchTurn() {
     if(state.mode === 'PvE' && state.turn === 2) setTimeout(triggerRoll, 1000);
 }
 
-// 🧠 THE QUANTUM-BRAIN AI ENGINE (MAXIMUM STRENGTH)
+// 🧠 TERMINATOR-TIER AI ENGINE (100% UNTOUCHED OUTSIDE OF THIS BLOCK)
 function aiMove() {
     let moves = [];
     for(let i=0; i<7; i++) if(isValidMove(2, i)) moves.push(i);
     if(moves.length === 0) { setTimeout(switchTurn, 800); return; }
 
-    let bestMove = moves[0], bestScore = -9999;
+    let bestMove = moves[0], bestScore = -999999;
 
     moves.forEach(m => {
         let currentPos = state.p2_pos[m];
         let n = currentPos + state.roll;
-        let score = n * 5; // Base progress
+        let score = n * 10; // Base forward progress
 
-        if(n === 14) score += 10000; // Winning/scoring is absolute priority
+        // 1. INSTANT WIN
+        if(n === 14) score += 100000;
 
-        // Capture Logic: Exponentially reward killing advanced human pieces
+        // 2. BRUTAL CAPTURES (Exponential weighting for advanced targets)
         if(n >= 4 && n <= 11 && n !== 7 && state.p1_pos.includes(n)) {
-            score += 1500 + (n * 50); 
+            score += 4000; 
+            score += Math.pow(n, 3); // Tile 10 = +1000. Tile 11 = +1331. Maximum punishment.
+            
+            let wasInDanger = state.p1_pos.some(p1 => p1 >= 0 && currentPos > p1 && (currentPos - p1) <= 4);
+            if(wasInDanger) score += 2000; // Double reward for saving itself while killing
         }
 
-        // Rosette Logic
-        if(n === 3 || n === 13) score += 600; 
-        if(n === 7) score += 2000; // CENTER ROSETTE IS KING (Safe + Extra Turn + Blocks Player)
+        // 3. ROSETTES 
+        if(n === 3 || n === 13) score += 1500;
+        if(n === 7) score += 8000; // Absolute priority center dominance
 
-        // Penalty for LEAVING the center rosette if human pieces are threatening to take it
+        // 4. THE "IRON GATE" CAMPING PENALTY
         if (currentPos === 7) {
             let humanThreatening = state.p1_pos.some(p1 => p1 >= 3 && p1 < 7);
-            if (humanThreatening) score -= 1500; // Stay and block!
-        }
-
-        // EVASION: Run away if currently in danger
-        if(currentPos >= 4 && currentPos <= 11 && currentPos !== 7) {
-            let wasInDanger = state.p1_pos.some(p1 => p1 >= 0 && currentPos > p1 && (currentPos - p1) <= 4);
-            if(wasInDanger) {
-                if (n > 11 || n === 7) score += 800; // Escaped to safety!
-                else score += 100; // Moved but still in combat zone
+            if (humanThreatening && n !== 14) {
+                score -= 15000; // Will NEVER leave tile 7 if you are behind it, unless it's a winning move
             }
         }
 
-        // VULNERABILITY AVOIDANCE: Don't step into obvious traps
+        // 5. EVASION 
+        if(currentPos >= 4 && currentPos <= 11 && currentPos !== 7) {
+            let dangers = state.p1_pos.filter(p1 => p1 >= 0 && currentPos > p1 && (currentPos - p1) <= 4);
+            if(dangers.length > 0) {
+                if (n > 11 || n === 7) score += 3000; 
+                else score += 500; 
+            }
+        }
+
+        // 6. TRUE PROBABILITY VULNERABILITY 
         if(n >= 4 && n <= 11 && n !== 7) {
+            let deathRisk = 0;
             state.p1_pos.forEach(p1 => {
                 if(p1 >= 0 && p1 < n) {
                     let distance = n - p1;
-                    if(distance === 1) score -= 300; 
-                    if(distance === 2) score -= 500; // Highest probability to roll a 2 (37.5%)
-                    if(distance === 3) score -= 300; 
-                    if(distance === 4) score -= 150; 
+                    if(distance === 1) deathRisk += 2500; // 25% chance of human roll 1
+                    if(distance === 2) deathRisk += 3750; // 37.5% chance of human roll 2
+                    if(distance === 3) deathRisk += 2500; // 25% chance of human roll 3
+                    if(distance === 4) deathRisk += 625;  // 6.25% chance of human roll 4
+                }
+            });
+            score -= deathRisk;
+            
+            // THE "STALKING" MECHANIC: Setup kills for next turn
+            state.p1_pos.forEach(p1 => {
+                if (p1 > n && p1 <= 11 && p1 !== 7) {
+                    let attackDist = p1 - n;
+                    if (attackDist === 2) score += 800; // Best stalking position
+                    if (attackDist === 1 || attackDist === 3) score += 400;
                 }
             });
         }
 
-        if(currentPos === -1) score += 100; // Favor entering the board to maintain board presence
+        // 7. BOARD PRESENCE
+        if(currentPos === -1) {
+            score += 250; 
+            state.p1_pos.forEach(p1 => {
+                if (p1 >= 0 && p1 < n && (n - p1) <= 4) score -= 1000; // Don't deploy into instant death
+            });
+        }
 
-        if(score > bestScore) { bestScore = score; bestMove = m; }
+        // 8. TIE BREAKER: If scores are equal, move the piece furthest back to form a phalanx
+        if(score > bestScore) { 
+            bestScore = score; bestMove = m; 
+        } else if (score === bestScore) {
+            if (currentPos < state.p2_pos[bestMove]) {
+                bestMove = m; 
+            }
+        }
     });
 
     attemptMove(2, bestMove);
@@ -698,7 +774,18 @@ canvas.addEventListener('touchstart', e => { e.preventDefault(); handleInput(e.t
 
 function loop() {
     ctx.clearRect(0,0,canvasW,canvasH);
-    drawBoard(); drawPieces(); drawSolidDice();
+    
+    if(state.isVictory) {
+        if(Math.random() > 0.8) {
+            let fwColor = state.victoryPlayer === 1 ? getComputedStyle(document.documentElement).getPropertyValue('--p1') : getComputedStyle(document.documentElement).getPropertyValue('--p2');
+            spawnSparks(Math.random() * canvasW, (Math.random() * canvasH) / 2, fwColor, 20);
+        }
+    }
+
+    drawBoard(); 
+    drawPieces(); 
+    drawParticles(); 
+    drawSolidDice();
     requestAnimationFrame(loop);
 }
 
